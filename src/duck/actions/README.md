@@ -1,0 +1,1 @@
+The action is a basic function called from the component whenever we want the whole state of the app to be changed. Our action creator is a simple function returning an object (the action itself) with a type attribute expressing what happened with the app.
