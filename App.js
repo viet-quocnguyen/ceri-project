@@ -5,10 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import store from "./src/duck/store";
 
 import * as Font from "expo-font";
-import { Container, Text } from "native-base";
 import Navigator from "./src/routes/homeStack";
-import HomeScreen from "./src/screens/HomeScreen";
-import ProfileScreen from "./src/screens/ProfileScreen";
 
 export default class App extends Component {
   constructor(props) {
