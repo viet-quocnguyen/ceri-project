@@ -6,7 +6,7 @@ import DemoPubnub from "../screens/DemoPubnub";
 
 const screens = {
   Home: {
-    screen: DemoPubnub
+    screen: HomeScreen
   },
   Profile: {
     screen: ProfileScreen

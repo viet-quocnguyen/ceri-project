@@ -13,6 +13,7 @@ import {
   heightPercentageToDP as hp
 } from "react-native-responsive-screen";
 import MapView, { Marker } from "react-native-maps";
+import PubNub from "pubnub";
 import PubNubReact from "pubnub-react";
 
 class DemoPubnub extends Component {
@@ -39,9 +40,6 @@ class DemoPubnub extends Component {
       isFocused: false,
       allowGPS: true //toggle the app's ability to gather GPS data of the user
     };
-
-    // init pubnub
-    this.pubnub.init(this);
   }
 
   async componentDidMount() {
@@ -50,11 +48,8 @@ class DemoPubnub extends Component {
 
   componentDidUpdate(prevProps, prevState) {
     if (prevState.allowGPS != this.state.allowGPS) {
-      //check whether the user just toggled their GPS settings
       if (this.state.allowGPS) {
-        //if user toggled to show their GPS data, we add them to the user Map once again
         if (this.state.focusOnMe) {
-          //if user toggled to focus map view on themselves
           this.animateToCurrent(this.state.currentLoc, 1000);
         }
         let users = this.state.users; //make a copy of the users array to manipulate
@@ -102,10 +97,20 @@ class DemoPubnub extends Component {
   }
 
   async setUpApp() {
-    // pubnub listener, take the updated data on channel and map to our current state
-    this.pubnub.getMessage("channel", msg => {
-      /** TO-DO */
+    let granted;
+    if (Platform.OS === "android") {
+      granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Location Permission",
+          message: "PubMoji needs to access your location",
+          buttonNegative: "No",
+          buttonPositive: "Yes"
+        }
+      );
+    }
 
+    this.pubnub.getMessage("channel", msg => {
       let users = this.state.users;
       if (msg.message.hideUser) {
         users.delete(msg.publisher);
@@ -113,7 +118,7 @@ class DemoPubnub extends Component {
           users
         });
       } else {
-        coord = [msg.message.latitude, msg.message.longitude]; //Format GPS Coordinates for Payload
+        coord = [msg.message.latitude, msg.message.longitude];
 
         let oldUser = this.state.users.get(msg.publisher);
 
@@ -141,32 +146,40 @@ class DemoPubnub extends Component {
       channels: ["channel"]
     });
 
-    navigator.geolocation.watchPosition(
-      position => {
-        this.setState({
-          currentLoc: position.coords
-        });
-        if (this.state.allowGPS) {
-          this.pubnub.publish({
-            message: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            },
-            channel: "channel"
+    if (
+      granted === PermissionsAndroid.RESULTS.GRANTED ||
+      Platform.OS === "ios"
+    ) {
+      /*-----watchPosition()----*/
+      navigator.geolocation.watchPosition(
+        position => {
+          this.setState({
+            currentLoc: position.coords
           });
+          if (this.state.allowGPS) {
+            this.pubnub.publish({
+              message: {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              },
+              channel: "channel"
+            });
+          }
+          //console.log(positon.coords);
+        },
+        error => console.log("Maps Error: ", error),
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 10 //grab the location whenever the user's location changes by 10 meters
         }
-        //console.log(positon.coords);
-      },
-      error => console.log("Maps Error: ", error),
-      {
-        enableHighAccuracy: true,
-        distanceFilter: 10 //grab the location whenever the user's location changes by 10 meters
-      }
-    );
+      );
+    } else {
+      console.log("ACCESS_FINE_LOCATION permission denied");
+    }
   }
 
   // focus on current user location
-  focusLocation = () => {
+  focusLoc = () => {
     if (this.state.focusOnMe || this.state.fixedOnUUID) {
       this.setState({
         focusOnMe: false,
@@ -221,12 +234,7 @@ class DemoPubnub extends Component {
               ref={marker => {
                 this.marker = marker;
               }}
-            >
-              {/* <Image
-                style={styles.profile}
-                source={require("./LOCATION OF YOUR USER IMAGE PROFILES")} //User's image
-              /> */}
-            </Marker>
+            ></Marker>
           ))}
         </MapView>
         <View style={styles.topBar}>
@@ -240,8 +248,8 @@ class DemoPubnub extends Component {
         </View>
         <View style={styles.bottom}>
           <View style={styles.bottomRow}>
-            <TouchableOpacity onPress={this.focusLocation}>
-              focus
+            <TouchableOpacity onPress={this.focusLoc}>
+              <Text>Focus</Text>
               {/* <Image style={styles.focusLoc} source={require("./heart.png")} /> */}
             </TouchableOpacity>
           </View>
